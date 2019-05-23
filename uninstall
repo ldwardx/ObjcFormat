@@ -1,0 +1,38 @@
+#!/bin/bash
+# uninstall
+
+hook_file=".git/hooks/pre-commit"
+flag=0
+
+function check_repo() {
+    if ! [[ -d ".git" ]]; then
+        repo_path=`git rev-parse --show-toplevel 2>/dev/null`
+        if [[ $? -eq 0 ]]; then
+            cd $repo_path
+        fi
+    fi
+}
+
+function del_hook_file() {
+    if [[ -e $hook_file ]]; then
+        rm -rf $hook_file
+        flag=1
+    fi
+}
+
+function del_clang_format() {
+    if [[ -e ".clang-format" ]]; then
+        rm -rf ".clang-format"
+        flag=1
+    fi
+}
+
+function finish() {
+    if [[ flag -eq 1 ]]; then
+        echo "🎉 Uninstall success."
+    else
+        echo "Not found installed files."
+    fi
+}
+
+check_repo && del_hook_file && del_clang_format && finish

@@ -1,0 +1,27 @@
+#!/bin/bash
+# lib
+
+reset=`tput sgr0`
+red=`tput setaf 1`
+green=`tput setaf 2`
+yellow=`tput setaf 3`
+blue=`tput setaf 4`
+magenta=`tput setaf 5`
+cyan=`tput setaf 6`
+white=`tput setaf 7`
+
+function process_format_ignore_file() {
+    sed -i "" '/^[[:space:]]*$/d' .format-ignore
+}
+
+function call_difftool_if_needed() {
+    grep -q "# need_difftool" ".git/hooks/pre-commit"
+    if [ $? -eq 0 ]; then
+        diff=`git diff --name-only --diff-filter=ACM | grep -e '\.m$' -e '\.mm$' -e '\.h$' -e '\.hh$' | wc -l`
+        if [[ $diff -gt 1 ]]; then
+            git difftool -y -d --no-symlinks
+        else
+            git difftool -y
+        fi
+    fi
+}

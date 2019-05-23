@@ -1,0 +1,63 @@
+#!/bin/bash
+# install
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+format_check_file="$DIR/ObjcFormat/format-check"
+hook_file=".git/hooks/pre-commit"
+
+function check_repo() {
+    if ! [[ -d ".git" ]]; then
+        repo_path=`git rev-parse --show-toplevel 2>/dev/null`
+        if [[ $? -gt 0 ]]; then
+            echo -e "⚠️  This isn't a git repo.\n"
+            read -p "Do you want to use formatter in a non-git repo? (y/n)?" answer </dev/tty
+            case ${answer:0:1} in
+                y|Y )
+                    symlink_clang_format && install_success && exit 0
+                ;;
+                * )
+                    echo "Install cancel." && exit 1
+                ;;
+            esac
+        else
+            cd $repo_path
+        fi
+    fi
+}
+
+function make_hook_file() {
+    if [[ -e $hook_file ]]; then
+        echo "⚠️  Already installed, if you want to reinstall, please uninstall first." 
+        return 1
+    fi
+    if ! [[ -d ".git/hooks" ]]; then
+        mkdir -p ".git/hooks"
+    fi
+    touch $hook_file && chmod +x $hook_file
+}
+
+function write_hook_file() {
+    echo "#!/bin/bash" >> $hook_file
+    echo "format_check_file=$format_check_file" >> $hook_file
+    echo "if ! [[ -e \$format_check_file ]]; then
+        echo \"❌ Not find format-check file,it should be here:\$format_check_file\" && exit 1 
+    fi" >> $hook_file
+    echo "\$format_check_file" >> $hook_file
+}
+
+function symlink_clang_format() {
+    ln -sf "$DIR/ObjcFormat/.clang-format" ".clang-format"
+}
+
+function ignore_clang_format() {
+    grep -q ".clang-format" ".gitignore"
+    if [ $? -gt 0 ]; then
+        echo ".clang-format" >> ".gitignore"
+    fi
+}
+
+function install_success() {
+    echo "🎉 Install success."
+}
+
+check_repo && make_hook_file && write_hook_file && symlink_clang_format && ignore_clang_format && install_success

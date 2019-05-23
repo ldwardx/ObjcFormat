@@ -1,0 +1,50 @@
+#!/bin/bash
+# format-directory
+
+IFS=$'\n'
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+source $DIR/lib
+
+function check_repo() {
+    repo_path=`git rev-parse --show-toplevel 2>/dev/null`
+    if [[ $? -gt 0 ]]; then
+        files=`find . -type f | grep -e '\.m$' -e '\.mm$' -e '\.h$' -e '\.hh$'`
+    else
+        files=`git ls-files --full-name | grep -e '\.m$' -e '\.mm$' -e '\.h$' -e '\.hh$'`
+        cd $repo_path
+    fi
+}
+
+function check_clang_format_file() {
+    if ! [[ -e ".clang-format" ]]; then
+        echo "❌ Not found .clang-format file, please make sure you have installed."
+        echo "Or, you can fix the issue by executing the following command:"
+        echo "ln -sf $DIR/.clang-format `pwd`/.clang-format"
+        return 1
+    fi
+}
+
+function files_check() {
+    if [[ -f ".format-ignore" ]]; then
+        process_format_ignore_file
+        if [[ -s ".format-ignore" ]]; then
+            files=`echo "$files" | grep -v -f .format-ignore`
+        fi
+    fi
+    if [[ -z $files ]]; then
+        exit 0
+    fi
+}
+
+function files_format() {
+    for file in $files; do
+        echo "🚸 $file"
+        $DIR/format-file $file
+    done
+
+    echo -e "\n🎉 Format success!"
+    echo "‼️  You are responsible for reviewing all formatting files to ensure correct.‼️"
+}
+
+check_repo && check_clang_format_file && files_check && files_format

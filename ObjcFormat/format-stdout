@@ -1,0 +1,16 @@
+#!/bin/bash
+# format-temp
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+function check_clang_format_file() {
+    if ! [[ -e ".clang-format" ]]; then
+        echo "❌ Not found .clang-format file, please make sure you have installed."
+        echo "If already installed, run the script from the installation directory."
+        exit 1
+    fi
+}
+
+check_clang_format_file
+
+$DIR/clang-format -style=file $1

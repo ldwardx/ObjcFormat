@@ -1,0 +1,66 @@
+#!/bin/bash
+# format-repo
+
+IFS=$'\n'
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+source $DIR/lib
+
+function check_repo() {
+    repo_path=`git rev-parse --show-toplevel 2>/dev/null`
+    if [[ $? -gt 0 ]]; then
+        echo -e "⚠️  No git repo found."
+        echo "Need to format a non-git repo directory? Use $DIR/format_directory."
+        return 1
+    else
+        cd $repo_path
+    fi
+}
+
+function warning() {
+    echo -e "‼️  Danger‼️\n${red}The formatter is not guaranteed to be 100% correct, you are responsible for reviewing all formatting files.\nDon't recommend using this script.${reset}"
+    read -p "Still want to format the entire repo (y/n)?" answer </dev/tty
+    case ${answer:0:1} in
+        y|Y )
+            check_clang_format_file && files_check && files_format
+        ;;
+        * )
+            exit 0
+        ;;
+    esac
+}
+
+function check_clang_format_file() {
+    if ! [[ -e ".clang-format" ]]; then
+        echo "❌ Not found .clang-format file, please make sure you have installed."
+        echo "Or, you can fix the issue by executing the following command:"
+        echo "ln -sf $DIR/.clang-format `pwd`/.clang-format"
+        return 1
+    fi
+}
+
+function files_check() {
+    files=`git ls-tree -r --name-only HEAD | grep -e '\.m$' -e '\.mm$' -e '\.h$' -e '\.hh$'`
+    if [[ -f ".format-ignore" ]]; then
+        process_format_ignore_file
+        if [[ -s ".format-ignore" ]]; then
+            files=`echo "$files" | grep -v -f .format-ignore`
+        fi
+    fi
+    if [[ -z $files ]]; then
+        exit 0
+    fi
+}
+
+function files_format() {
+    for file in $files; do
+        echo "🚸 $file"
+        $DIR/format-file $file
+    done
+
+    echo -e "\n🎉 Format success!"
+    echo "‼️  You are responsible for reviewing all formatting files to ensure correct.‼️"
+    call_difftool_if_needed
+}
+
+check_repo && warning

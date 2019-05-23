@@ -1,0 +1,82 @@
+#!/bin/bash
+# hook
+
+IFS=$'\n'
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+source $DIR/lib
+
+function check_clang_format_file() {
+    if ! [[ -e ".clang-format" ]]; then
+        if [[ -h ".clang-format" ]]; then
+            echo "❌ Not find .clang-format file,it should be here:`readlink .clang-format`"
+            echo "Type the following command at the terminal to fix the issue:"
+            echo "ln -sf YouPathOf.clang-format `pwd`/.clang-format"
+        else
+            echo "❌ Not find .clang-format file,it should be here:`pwd`/.clang-format"
+            echo "Type the following command at the terminal to fix the issue:"
+            echo "ln -sf $DIR/.clang-format `pwd`/.clang-format"
+        fi
+        return 1
+    fi
+}
+
+function files_check() {
+    files=`git diff --cached --name-only --diff-filter=ACM | grep -e '\.m$' -e '\.mm$' -e '\.h$' -e '\.hh$'`
+    if [[ -f ".format-ignore" ]]; then
+        process_format_ignore_file
+        if [[ -s ".format-ignore" ]]; then
+            files=`echo "$files" | grep -v -f .format-ignore`
+        fi
+    fi
+    if [[ -z $files ]]; then
+        exit 0
+    fi
+}
+
+function files_diff() {
+    for file in $files; do
+        diff=`$DIR/format-stdout $file | diff $file - | wc -l`
+        if [[ $diff -gt 0 ]]; then
+            files_unformat+=($file)
+        fi
+    done
+    if [[ ${#files_unformat[@]} -gt 0 ]]; then
+        ask
+    else
+        exit 0
+    fi
+}
+
+function ask() {
+    echo -e "💔 Found unformatted files:\n"
+    for file in "${files_unformat[@]}"; do
+        echo "${red}       $file${reset}"
+    done
+    echo ""
+
+    read -p "Need auto format (y/n)?" answer </dev/tty
+    case ${answer:0:1} in
+        y|Y )
+            files_format
+        ;;
+        * )
+            echo -e "Unformatted and committed.\n" && exit 0
+        ;;
+    esac
+}
+
+function files_format() {
+    echo ""
+    for file in "${files_unformat[@]}"; do
+        echo "    🚸 $file"
+        $DIR/format-file $file
+    done
+
+    echo -e "\n🎉 Format success!"
+    echo "Please review the formatting result and then recommit."
+    call_difftool_if_needed
+    exit 1
+}
+
+check_clang_format_file && files_check && files_diff

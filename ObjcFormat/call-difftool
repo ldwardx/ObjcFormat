@@ -1,0 +1,18 @@
+#!/bin/bash
+# call-difftool
+
+function check_repo() {
+    repo_path=`git rev-parse --show-toplevel 2>/dev/null`
+    if [[ $? -gt 0 ]]; then
+        echo -e "⚠️  No git repo found."
+        return 1
+    else
+        cd $repo_path
+    fi
+}
+
+function call_difftool {
+    echo "# need_difftool" >> .git/hooks/pre-commit
+}
+
+check_repo && call_difftool
